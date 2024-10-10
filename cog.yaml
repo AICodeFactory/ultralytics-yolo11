@@ -2,36 +2,33 @@ build:
   gpu: true
   cuda: "12.1"
   python_version: "3.9"
-  environment_variables:
-    PYTHONUNBUFFERED: "1"
-    PYTHONDONTWRITEBYTECODE: "1"
-    PIP_NO_CACHE_DIR: "1"
-    PIP_BREAK_SYSTEM_PACKAGES: "1"
-    MKL_THREADING_LAYER: "GNU"
-    OMP_NUM_THREADS: "1"
+  python_packages:
+    - "torch"
+    - "torchvision"
+    - "pydantic<2.0.0"
+    - "fastapi==0.95.2"  # 兼容 pydantic 1.x
+
   run:
+    - export PYTHONUNBUFFERED=1
+    - export PYTHONDONTWRITEBYTECODE=1
+    - export PIP_NO_CACHE_DIR=1
+    - export PIP_BREAK_SYSTEM_PACKAGES=1
+    - export MKL_THREADING_LAYER=GNU
+    - export OMP_NUM_THREADS=1
+    - mkdir -p /root/.config/Ultralytics
+    - curl -o /root/.config/Ultralytics/Arial.ttf https://github.com/ultralytics/assets/releases/download/v0.0.0/Arial.ttf
+    - curl -o /root/.config/Ultralytics/Arial.Unicode.ttf https://github.com/ultralytics/assets/releases/download/v0.0.0/Arial.Unicode.ttf
     - apt-get update
     - apt-get install -y --no-install-recommends gcc git zip unzip wget curl htop libgl1 libglib2.0-0 libpython3-dev gnupg g++ libusb-1.0-0 libsm6
     - apt upgrade --no-install-recommends -y openssl tar
     - python3 -m pip install --upgrade pip wheel
-    - pip install -e ".[export]" "tensorrt-cu12==10.1.0" "albumentations>=1.4.6" comet pycocotools
+
+    - git clone --depth 1 --branch main https://github.com/AICodeFactory/ultralytics-yolo11.git /pre-build  # 浅克隆 main 分支的最新提交
+    - cd /pre-build && pip install -e ".[export]" "tensorrt-cu12==10.1.0" "albumentations>=1.4.6" comet pycocotools
     - yolo export model=tmp/yolo11n.pt format=edgetpu imgsz=32 || yolo export model=tmp/yolo11n.pt format=edgetpu imgsz=32
     - yolo export model=tmp/yolo11n.pt format=ncnn imgsz=32
     - pip install "paddlepaddle>=2.6.0" x2paddle
     - pip install numpy==1.23.5
+    - pip install "pydantic<2.0.0" "fastapi==0.95.2"
 
-predict:
-  gpu: true
-  pre_process:
-    - yolo export model=tmp/yolo11n.pt format=edgetpu imgsz=32 || yolo export model=tmp/yolo11n.pt format=edgetpu imgsz=32
-    - yolo export model=tmp/yolo11n.pt format=ncnn imgsz=32
-  post_process: 
-    - rm -rf tmp /root/.config/Ultralytics/persistent_cache.json
-
-resources:
-  - url: https://github.com/ultralytics/assets/releases/download/v0.0.0/Arial.ttf
-    path: /root/.config/Ultralytics/Arial.ttf
-  - url: https://github.com/ultralytics/assets/releases/download/v0.0.0/Arial.Unicode.ttf
-    path: /root/.config/Ultralytics/Arial.Unicode.ttf
-  - url: https://github.com/ultralytics/assets/releases/download/v8.3.0/yolo11n.pt
-    path: /ultralytics/tmp/yolo11n.pt
+predict: "predict.py:Predictor"
